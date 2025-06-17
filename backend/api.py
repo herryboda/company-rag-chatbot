@@ -13,23 +13,19 @@ from langchain.chains import ConversationalRetrievalChain
 
 load_dotenv()
 
-# ─────────── Config ───────────
 COLLECTION = os.getenv("QDRANT_COLLECTION", "company_policies")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://qdrant:6333")
 
-# ─────────── FastAPI app ───────────
 app = FastAPI(title="Company RAG Chatbot")
 
-# Enable CORS so frontend can talk to backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or ["http://localhost:3000"]
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ─────────── Request/Response models ───────────
 class ChatRequest(BaseModel):
     session_id: str | None = None
     message: str
@@ -38,32 +34,39 @@ class ChatResponse(BaseModel):
     session_id: str
     answer: str
 
-# ─────────── Chain Initialization ───────────
-def make_chain():
-    # Embeddings
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+SMALL_TALK = {
+    "thanks": "You're welcome! 😊",
+    "thank you": "You're welcome!",
+    "makes sense": "Glad to hear that!",
+    "cool": "😎",
+    "okay": "👍",
+    "ok": "👌",
+    "got it": "Great!",
+    "great": "Awesome!",
+    "nice": "😄",
+    "bye": "Goodbye! 👋",
+    "hello": "Hi there! 👋",
+    "hi": "Hey! 👋",
+}
 
-    # Qdrant client
+def make_chain():
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
     client = QdrantClient(url=QDRANT_URL)
 
-    # Ensure collection exists
     if not client.collection_exists(COLLECTION):
         client.create_collection(
             collection_name=COLLECTION,
             vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
         )
 
-    # LangChain vector store wrapper
     vectorstore = Qdrant(
         client=client,
         collection_name=COLLECTION,
         embeddings=embeddings,
     )
 
-    # Chat LLM
     llm = ChatOpenAI(model="gpt-4o", temperature=0.0)
 
-    # Retrieval-augmented chain
     return ConversationalRetrievalChain.from_llm(
         llm,
         retriever=vectorstore.as_retriever(search_kwargs={"k": 6}),
@@ -73,11 +76,16 @@ def make_chain():
 chain = make_chain()
 _sessions: dict[str, list[tuple[str, str]]] = {}
 
-# ─────────── Chat endpoint ───────────
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
     sid = req.session_id or str(uuid.uuid4())
     history = _sessions.setdefault(sid, [])
+
+    message_lower = req.message.strip().lower()
+    if message_lower in SMALL_TALK:
+        answer = SMALL_TALK[message_lower]
+        history.append((req.message, answer))
+        return ChatResponse(session_id=sid, answer=answer)
 
     try:
         result = chain({"question": req.message, "chat_history": history})
