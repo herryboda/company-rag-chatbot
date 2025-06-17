@@ -1,0 +1,12 @@
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-dotenv==1.0.1
+langchain
+langchain-openai
+langchain-community
+langchain-text-splitters
+langchain-core
+qdrant-client==1.9.1
+tiktoken==0.6.0
+pydantic==2.7.4
+pypdf
