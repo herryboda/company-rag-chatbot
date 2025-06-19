@@ -10,3 +10,20 @@ qdrant-client==1.9.1
 tiktoken==0.6.0
 pydantic==2.7.4
 pypdf
+# Enhanced RAG and training capabilities
+langchain-experimental
+sentence-transformers
+numpy
+pandas
+scikit-learn
+# Conversation and memory management
+redis
+# Better document processing
+unstructured
+python-multipart
+# Monitoring and logging
+structlog
+prometheus-client
+# Additional utilities
+python-dateutil
+pytz
